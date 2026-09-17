@@ -1,127 +1,258 @@
-
-
-# VERSION 5 — PHASE 5
-
-After you personally verify Phase 4, replace the entire file with:
-
-```md
 # ACTIVE DEVELOPMENT PHASE
 
-ACTIVE_PHASE: 5
+ACTIVE_PHASE: 3
 
-PHASE_NAME: Final Verification and Release
+PHASE_NAME: QR Scanner — Camera and Image
 
 ## AUTHORIZED_SCOPE
 
-- final testing
-- bug fixing
-- release cleanup
-- documentation
-- deployment preparation
-- final offline verification
-- final static-hosting verification
+### Camera Scanner
 
-## DONE_WHEN
+* camera permission handling
+* camera preview
+* QR detection
+* QR decoding
+* scanner start/stop
+* camera switching when practical
+* copy decoded result
+* clear decoded result
+* duplicate detection prevention
+* scanner-specific error handling
 
-The application is ready for deployment as a static website.
+### Image Scanner
 
-The final verification must confirm:
+Add a second way to scan a QR code:
 
-### Generator
+* upload an image containing a QR code;
+* decode the QR code entirely locally;
+* display the decoded result;
+* allow the user to select an image from the device;
+* support common image formats such as PNG, JPEG, and WebP where supported by the browser;
+* allow drag-and-drop when practical;
+* provide a clear error when no QR code can be detected;
+* do not upload the image anywhere.
 
-- short text works;
-- 100+ byte text works;
-- 200+ byte text works;
-- larger supported payloads work;
-- Unicode works;
-- emoji works;
-- multiline text works;
-- JSON works;
-- URLs work;
-- special characters work;
-- QR download works;
-- oversized payloads fail clearly;
-- input is never silently truncated.
+## SCANNER UI
 
-### Scanner
+The Scan view should provide two clearly understandable options:
 
-- camera permission works;
-- camera preview works;
-- QR detection works;
-- QR decoding works;
-- generated QR codes can be scanned;
-- externally generated QR codes can be scanned;
-- Unicode is preserved;
-- multiline content is preserved;
-- JSON is preserved;
-- URLs are preserved;
-- large supported payloads are preserved;
-- duplicate detection is controlled;
-- stop scanning works.
+```text
+Scan with Camera
 
-### Round Trip
+        OR
 
-For representative test cases:
+Scan from Image
+[ Upload Image ]
+```
 
-INPUT
-→ GENERATE QR
-→ SCAN QR
-→ OUTPUT
+On desktop, drag-and-drop may also be provided:
+
+```text
+┌───────────────────────────────┐
+│                               │
+│      Drop QR image here       │
+│                               │
+│       or                     │
+│                               │
+│     [ Choose Image ]          │
+│                               │
+└───────────────────────────────┘
+```
+
+Keep the UI simple.
+
+Do not create a separate page for image scanning.
+
+## IMAGE PROCESSING
+
+Image QR decoding must happen entirely inside the browser.
+
+The application must:
+
+1. receive the selected local image;
+2. load it locally;
+3. process it locally;
+4. detect the QR code locally;
+5. decode the QR payload;
+6. display the result.
+
+The original image must never be sent to a server.
+
+Do not use:
+
+* cloud OCR;
+* remote image recognition;
+* external QR scanning APIs;
+* remote uploads.
+
+## DETECTION STRATEGY
+
+Prefer a local browser-native QR detection capability when practical.
+
+Provide a bundled local fallback decoder when required.
+
+The implementation should work with:
+
+* QR screenshots;
+* photographs of QR codes;
+* downloaded QR images;
+* generated QR images;
+* QR codes embedded inside normal images.
+
+Do not implement general OCR.
+
+Only QR-code detection is required.
+
+## IMAGE ERROR HANDLING
+
+Handle at least these cases:
+
+### Invalid file
+
+Show:
+
+```text
+Please select a valid image.
+```
+
+### No QR detected
+
+Show:
+
+```text
+No QR code was detected in this image.
+```
+
+### Unsupported image
+
+Show:
+
+```text
+This image format could not be processed.
+```
+
+### Successful scan
+
+Show:
+
+```text
+QR detected
+```
+
+followed by the complete decoded payload.
+
+## CAMERA REQUIREMENTS
+
+The camera scanner must:
+
+* request permission appropriately;
+* display the camera preview;
+* prefer the rear/environment camera on supported mobile devices;
+* detect QR codes;
+* decode QR payloads locally;
+* display the complete decoded result;
+* handle Unicode correctly;
+* handle multiline text;
+* handle JSON;
+* handle URLs;
+* handle large payloads supported by the QR implementation;
+* avoid repeatedly processing the same QR every frame;
+* allow scanning to be stopped;
+* provide useful errors when camera access is unavailable.
+
+## LARGE PAYLOAD REQUIREMENT
+
+The scanner must be tested with QR codes containing at least:
+
+* 100+ bytes
+* 200+ bytes
+
+Also test larger payloads supported by the QR implementation.
+
+The decoded output must exactly match the original payload.
+
+## ROUND-TRIP TEST
+
+The Phase 2 generator must be tested with the Phase 3 scanner.
+
+Test:
+
+```text
+Input
+  ↓
+Generate QR
+  ↓
+Download QR as image
+  ↓
+Upload QR image
+  ↓
+Decode
+  ↓
+Output
+```
 
 The final output must equal the original input.
 
-### Offline
+Also test:
 
-With network access disabled:
+```text
+Input
+  ↓
+Generate QR
+  ↓
+Display QR
+  ↓
+Camera scan
+  ↓
+Output
+```
 
-- application loads;
-- generator works;
-- scanner works;
-- QR generation works;
-- QR decoding works;
-- download works;
-- copy works.
+## SECURITY REQUIREMENTS
 
-### Static Hosting
+Decoded QR data is untrusted input.
 
-Verify that the application works from a static web host without requiring:
+Never:
 
-- backend services;
-- databases;
-- API endpoints;
-- runtime CDN dependencies.
+* execute decoded content;
+* inject decoded content as HTML;
+* automatically navigate to decoded URLs;
+* interpret decoded content as executable code.
+
+Prefer safe text rendering.
 
 ## DO_NOT_IMPLEMENT
 
-No new product features.
+* general OCR
+* barcode scanning other than QR
+* cloud recognition
+* remote OCR
+* backend processing
+* image uploads to servers
+* scan history
+* persistent scan storage
+* accounts
+* authentication
+* encryption
+* synchronization
+* P2P communication
+* analytics
+* telemetry
+* unrelated UI redesign
+* speculative future functionality
 
-No new architecture.
+## PHASE_TRANSITION
 
-No framework migration.
+The agent MUST NOT modify this file.
 
-No backend.
+The agent MUST NOT advance the phase.
 
-No cloud service.
-
-No analytics.
-
-No telemetry.
-
-No unrelated refactoring.
-
-This phase is for verification and release readiness only.
-
-## FINALIZATION RULE
+Only the human user may change ACTIVE_PHASE.
 
 When all DONE_WHEN requirements are satisfied:
 
 STOP.
 
-Do not create another development phase automatically.
-
-Do not modify ACTIVE_PHASE.
-
-Do not extend the project scope.
+Wait for explicit human authorization before Phase 4.
 
 ## REQUIRED_FINAL_REPORT
 
@@ -129,26 +260,31 @@ PHASE:
 STATUS:
 
 IMPLEMENTED:
-- ...
+
+* ...
 
 TESTED:
-- ...
+
+* ...
 
 FILES CHANGED:
-- ...
+
+* ...
 
 DEFERRED:
-- ...
+
+* ...
 
 BLOCKED:
-- ...
 
-RELEASE_STATUS:
-READY / NOT READY
+* ...
 
-FINAL_NOTES:
-- ...
+SCOPE AUDIT:
+
+* Camera scanning implemented only if authorized above.
+* Image scanning implemented only if authorized above.
+* No future-phase functionality implemented.
+* ACTIVE_PHASE was not modified.
 
 NEXT AUTHORIZED PHASE:
-NONE — project complete
-```
+NONE — waiting for human authorization

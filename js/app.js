@@ -110,6 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    });
+
     // --- View Switching Updates ---
     function stopScanner() {
         if (currentStream) {
