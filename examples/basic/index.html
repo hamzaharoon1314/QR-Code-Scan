@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Kit Example</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        section { margin-bottom: 40px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        #camera-preview { width: 100%; max-width: 400px; background: #000; border-radius: 4px; display: none; }
+        .result-box { padding: 10px; background: #f0f8ff; border: 1px solid #b0d4ff; border-radius: 4px; margin-top: 10px; display: none; word-break: break-all; }
+        button, input[type="file"] { margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>QR Kit Example Application</h1>
+    
+    <section>
+        <h2>1. Generate QR</h2>
+        <input type="text" id="gen-input" placeholder="Enter text" style="width: 100%; padding: 8px; margin-bottom: 10px;">
+        <div id="gen-output"></div>
+    </section>
+
+    <section>
+        <h2>2. Scan Image</h2>
+        <input type="file" id="image-input" accept="image/*">
+        <div id="image-result" class="result-box"></div>
+    </section>
+
+    <section>
+        <h2>3. Camera Scanner</h2>
+        <button id="cam-start">Start Camera</button>
+        <button id="cam-stop" disabled>Stop Camera</button>
+        <br>
+        <video id="camera-preview" playsinline></video>
+        <div id="cam-result" class="result-box"></div>
+    </section>
+
+    <!-- Dependencies for the module -->
+    <script src="../../js/qrcode.js"></script>
+    <script src="../../js/qrcode_UTF8.js"></script>
+    <script src="../../js/jsQR.js"></script>
+    
+    <!-- Application code -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>

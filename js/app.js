@@ -1,9 +1,6 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // Setup UTF-8 support for qrcode-generator
-    if (typeof qrcode !== 'undefined' && qrcode.stringToBytesFuncs) {
-        qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
-    }
+const { generateQR, scanQRFromImage, QRScanner, getQRByteLength } = window.QRKit;
 
+document.addEventListener('DOMContentLoaded', () => {
     const navGenerate = document.getElementById('nav-generate');
     const navScan = document.getElementById('nav-scan');
     const viewGenerate = document.getElementById('view-generate');
@@ -57,11 +54,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateStats(text) {
         const charCount = text.length;
-        const byteCount = new Blob([text]).size; // Fast UTF-8 byte length
+        const byteCount = getQRByteLength(text);
         qrStats.textContent = `${charCount} characters • ${byteCount} bytes`;
     }
 
-    function generateQR(text) {
+    function doGenerateQR(text) {
         if (!text) {
             qrContainer.innerHTML = '<span class="text-gray-400 text-sm">QR Code will appear here</span>';
             qrError.classList.add('hidden');
@@ -71,17 +68,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            // Auto-detect type number (0), Error correction 'M'
-            const qr = qrcode(0, 'M');
-            qr.addData(text);
-            qr.make();
-            
-            currentQrDataUrl = qr.createDataURL(6, 2);
-            qrContainer.innerHTML = `<img src="${currentQrDataUrl}" alt="QR Code" class="max-w-full h-auto rounded">`;
+            const result = generateQR(text, { errorCorrection: 'M', cellSize: 6, margin: 2 });
+            currentQrDataUrl = result.dataUrl;
+            qrContainer.innerHTML = '';
+            const img = result.createImageElement();
+            img.className = 'max-w-full h-auto rounded';
+            qrContainer.appendChild(img);
             qrError.classList.add('hidden');
             qrDownload.disabled = false;
         } catch (e) {
-            console.error('QR Generation Error:', e);
+            console.error(e);
             qrContainer.innerHTML = '<span class="text-red-400 text-sm">Failed to render</span>';
             qrError.classList.remove('hidden');
             qrDownload.disabled = true;
@@ -92,13 +88,13 @@ document.addEventListener('DOMContentLoaded', () => {
     qrInput.addEventListener('input', (e) => {
         const text = e.target.value;
         updateStats(text);
-        generateQR(text);
+        doGenerateQR(text);
     });
 
     qrClear.addEventListener('click', () => {
         qrInput.value = '';
         updateStats('');
-        generateQR('');
+        doGenerateQR('');
         qrInput.focus();
     });
 
@@ -112,38 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.removeChild(link);
     });
 
-    // --- View Switching Updates ---
-    function stopScanner() {
-        if (currentStream) {
-            currentStream.getTracks().forEach(track => track.stop());
-            currentStream = null;
-        }
-        if (scanInterval) {
-            cancelAnimationFrame(scanInterval);
-            scanInterval = null;
-        }
-        scanVideo.classList.add('hidden');
-        scanOverlay.classList.remove('border-green-500/50');
-        scanOverlay.classList.add('border-black/40');
-        scanPlaceholder.classList.remove('hidden');
-        scanToggle.textContent = 'Start Camera';
-        scanToggle.classList.replace('bg-red-600', 'bg-indigo-600');
-        scanToggle.classList.replace('hover:bg-red-700', 'hover:bg-indigo-700');
-    }
-
-    // Override switchView to handle stopping scanner
-    const originalSwitchView = switchView;
-    switchView = function(view) {
-        if (view === 'generate') {
-            stopScanner();
-        }
-        originalSwitchView(view);
-    };
-
     // --- QR Scanner Logic ---
     const scanVideo = document.getElementById('scan-video');
-    const scanCanvas = document.getElementById('scan-canvas');
-    const scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
     const scanOverlay = document.getElementById('scan-overlay');
     const scanPlaceholder = document.getElementById('scan-placeholder');
     const scanToggle = document.getElementById('scan-toggle');
@@ -153,63 +119,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const scanResultContent = document.getElementById('scan-result-content');
     const scanCopy = document.getElementById('scan-copy');
     const scanClearResult = document.getElementById('scan-clear');
-
-    let currentStream = null;
-    let scanInterval = null;
-    let lastDecodedText = null;
-    let availableCameras = [];
-    let currentCameraIndex = 0;
-
-    const barcodeDetector = ('BarcodeDetector' in window) ? new BarcodeDetector({ formats: ['qr_code'] }) : null;
-
-    async function getCameras() {
-        try {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            availableCameras = devices.filter(device => device.kind === 'videoinput');
-            if (availableCameras.length > 1) {
-                scanSwitch.classList.remove('hidden');
-            } else {
-                scanSwitch.classList.add('hidden');
-            }
-        } catch (e) {
-            console.error('Error enumerating devices', e);
-        }
-    }
-
-    async function startScanner(deviceId = null) {
-        scanError.classList.add('hidden');
-        try {
-            const constraints = {
-                video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' }
-            };
-            currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-            scanVideo.srcObject = currentStream;
-            scanVideo.setAttribute('playsinline', true);
-            scanVideo.play();
-            
-            scanVideo.classList.remove('hidden');
-            scanPlaceholder.classList.add('hidden');
-            
-            scanToggle.textContent = 'Stop Camera';
-            scanToggle.classList.replace('bg-indigo-600', 'bg-red-600');
-            scanToggle.classList.replace('hover:bg-indigo-700', 'hover:bg-red-700');
-
-            requestAnimationFrame(tick);
-            
-            if (availableCameras.length === 0) {
-                await getCameras();
-            }
-        } catch (e) {
-            console.error('Camera access error', e);
-            scanError.classList.remove('hidden');
-            scanError.textContent = 'Camera access denied or unavailable.';
-        }
-    }
+    
+    let isScannerRunning = false;
 
     function displayResult(text) {
-        if (text === lastDecodedText) return;
-        lastDecodedText = text;
-        
         scanResultContent.textContent = text;
         scanResultContainer.classList.remove('hidden');
         scanResultContainer.classList.add('flex');
@@ -218,71 +131,80 @@ document.addEventListener('DOMContentLoaded', () => {
         scanOverlay.classList.remove('border-black/40');
         scanOverlay.classList.add('border-green-500/50');
         setTimeout(() => {
-            if (currentStream) {
+            if (isScannerRunning) {
                 scanOverlay.classList.remove('border-green-500/50');
                 scanOverlay.classList.add('border-black/40');
             }
         }, 500);
     }
 
-    async function tick() {
-        if (!currentStream || scanVideo.readyState !== scanVideo.HAVE_ENOUGH_DATA) {
-            scanInterval = requestAnimationFrame(tick);
-            return;
-        }
-
-        scanCanvas.width = scanVideo.videoWidth;
-        scanCanvas.height = scanVideo.videoHeight;
-        scanCtx.drawImage(scanVideo, 0, 0, scanCanvas.width, scanCanvas.height);
-        
-        let found = false;
-
-        // Try BarcodeDetector first
-        if (barcodeDetector) {
-            try {
-                const barcodes = await barcodeDetector.detect(scanCanvas);
-                if (barcodes.length > 0) {
-                    displayResult(barcodes[0].rawValue);
-                    found = true;
-                }
-            } catch (e) {
-                // fallback on error
-            }
-        }
-
-        // Fallback to jsQR
-        if (!found && typeof jsQR !== 'undefined') {
-            try {
-                const imageData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
-                const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                    inversionAttempts: 'dontInvert',
-                });
-                if (code && code.data) {
-                    displayResult(code.data);
-                }
-            } catch (e) {
-                // Ignore frame-specific processing errors
-            }
-        }
-
-        scanInterval = requestAnimationFrame(tick);
-    }
-
-    scanToggle.addEventListener('click', () => {
-        if (currentStream) {
-            stopScanner();
-        } else {
-            const deviceId = availableCameras.length > 0 ? availableCameras[currentCameraIndex].deviceId : null;
-            startScanner(deviceId);
+    const scanner = new QRScanner({
+        video: scanVideo,
+        onResult: (result) => {
+            displayResult(result.data);
+        },
+        onError: (error) => {
+            console.error(error);
+            scanError.classList.remove('hidden');
+            scanError.textContent = error.message;
+            stopScannerUI();
         }
     });
 
-    scanSwitch.addEventListener('click', () => {
-        if (availableCameras.length > 1) {
-            currentCameraIndex = (currentCameraIndex + 1) % availableCameras.length;
-            stopScanner();
-            startScanner(availableCameras[currentCameraIndex].deviceId);
+    function startScannerUI() {
+        scanError.classList.add('hidden');
+        scanVideo.classList.remove('hidden');
+        scanPlaceholder.classList.add('hidden');
+        
+        scanToggle.textContent = 'Stop Camera';
+        scanToggle.classList.replace('bg-indigo-600', 'bg-red-600');
+        scanToggle.classList.replace('hover:bg-indigo-700', 'hover:bg-red-700');
+        
+        if (scanner.availableCameras.length > 1) {
+            scanSwitch.classList.remove('hidden');
+        } else {
+            scanSwitch.classList.add('hidden');
         }
+        isScannerRunning = true;
+    }
+
+    function stopScannerUI() {
+        scanner.stop();
+        scanVideo.classList.add('hidden');
+        scanOverlay.classList.remove('border-green-500/50');
+        scanOverlay.classList.add('border-black/40');
+        scanPlaceholder.classList.remove('hidden');
+        scanToggle.textContent = 'Start Camera';
+        scanToggle.classList.replace('bg-red-600', 'bg-indigo-600');
+        scanToggle.classList.replace('hover:bg-red-700', 'hover:bg-indigo-700');
+        isScannerRunning = false;
+    }
+
+    // Override switchView to handle stopping scanner
+    const originalSwitchView = switchView;
+    switchView = function(view) {
+        if (view === 'generate') {
+            stopScannerUI();
+        }
+        originalSwitchView(view);
+    };
+
+    scanToggle.addEventListener('click', async () => {
+        if (isScannerRunning) {
+            stopScannerUI();
+        } else {
+            const cameras = await scanner.getCameras();
+            if (cameras.length > 1) {
+                scanSwitch.classList.remove('hidden');
+            }
+            const deviceId = cameras.length > 0 ? cameras[scanner.currentCameraIndex].deviceId : null;
+            await scanner.start(deviceId);
+            startScannerUI();
+        }
+    });
+
+    scanSwitch.addEventListener('click', async () => {
+        await scanner.switchCamera();
     });
 
     scanCopy.addEventListener('click', async () => {
@@ -300,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
         scanResultContent.textContent = '';
         scanResultContainer.classList.add('hidden');
         scanResultContainer.classList.remove('flex');
-        lastDecodedText = null;
+        scanner.lastDecodedText = null;
     });
 
     // --- Image Scanner Logic ---
@@ -325,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
             modeImageBtn.classList.add(...inactiveClasses);
             modeImageBtn.setAttribute('aria-selected', 'false');
         } else {
-            stopScanner();
+            stopScannerUI();
             uiImage.classList.remove('hidden');
             uiImage.classList.add('flex');
             uiCamera.classList.add('hidden');
@@ -348,8 +270,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnUpload = document.getElementById('btn-upload');
     const fileUpload = document.getElementById('file-upload');
 
-    function processImageFile(file) {
-        stopScanner();
+    async function processImageFile(file) {
+        stopScannerUI();
         scanError.classList.add('hidden');
         imageError.classList.add('hidden');
 
@@ -359,59 +281,19 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = async () => {
-                const maxDimension = 1200;
-                let width = img.width;
-                let height = img.height;
-                if (width > maxDimension || height > maxDimension) {
-                    const ratio = Math.min(maxDimension / width, maxDimension / height);
-                    width *= ratio;
-                    height *= ratio;
-                }
-                scanCanvas.width = width;
-                scanCanvas.height = height;
-                scanCtx.drawImage(img, 0, 0, width, height);
-
-                let found = false;
-                if (barcodeDetector) {
-                    try {
-                        const barcodes = await barcodeDetector.detect(scanCanvas);
-                        if (barcodes.length > 0) {
-                            displayResult(barcodes[0].rawValue);
-                            found = true;
-                        }
-                    } catch (err) {}
-                }
-                
-                if (!found && typeof jsQR !== 'undefined') {
-                    const imageData = scanCtx.getImageData(0, 0, width, height);
-                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                        inversionAttempts: 'attemptBoth',
-                    });
-                    if (code && code.data) {
-                        displayResult(code.data);
-                        found = true;
-                    }
-                }
-
-                if (!found) {
-                    imageError.textContent = 'No QR code was detected in this image.';
-                    imageError.classList.remove('hidden');
-                }
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
+        try {
+            const result = await scanQRFromImage(file);
+            displayResult(result.data);
+        } catch (err) {
+            imageError.textContent = err.message || 'No QR code was detected in this image.';
+            imageError.classList.remove('hidden');
+        }
     }
 
     btnUpload.addEventListener('click', () => {
         fileUpload.click();
     });
     
-    // Allow clicking the drop zone itself to open file dialog
     dropZone.addEventListener('click', (e) => {
         if (e.target !== btnUpload) fileUpload.click();
     });
@@ -420,7 +302,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.files && e.target.files.length > 0) {
             processImageFile(e.target.files[0]);
         }
-        // Reset so same file can be selected again
         e.target.value = '';
     });
 
@@ -439,5 +320,4 @@ document.addEventListener('DOMContentLoaded', () => {
             processImageFile(e.dataTransfer.files[0]);
         }
     });
-
 });
