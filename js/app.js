@@ -304,7 +304,45 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- Image Scanner Logic ---
+    const modeCameraBtn = document.getElementById('mode-camera');
+    const modeImageBtn = document.getElementById('mode-image');
+    const uiCamera = document.getElementById('ui-camera');
+    const uiImage = document.getElementById('ui-image');
     const imageError = document.getElementById('image-error');
+
+    function switchScanMode(mode) {
+        if (mode === 'camera') {
+            uiCamera.classList.remove('hidden');
+            uiCamera.classList.add('flex');
+            uiImage.classList.add('hidden');
+            uiImage.classList.remove('flex');
+            
+            modeCameraBtn.classList.add(...activeClasses);
+            modeCameraBtn.classList.remove(...inactiveClasses);
+            modeCameraBtn.setAttribute('aria-selected', 'true');
+            
+            modeImageBtn.classList.remove(...activeClasses);
+            modeImageBtn.classList.add(...inactiveClasses);
+            modeImageBtn.setAttribute('aria-selected', 'false');
+        } else {
+            stopScanner();
+            uiImage.classList.remove('hidden');
+            uiImage.classList.add('flex');
+            uiCamera.classList.add('hidden');
+            uiCamera.classList.remove('flex');
+            
+            modeImageBtn.classList.add(...activeClasses);
+            modeImageBtn.classList.remove(...inactiveClasses);
+            modeImageBtn.setAttribute('aria-selected', 'true');
+            
+            modeCameraBtn.classList.remove(...activeClasses);
+            modeCameraBtn.classList.add(...inactiveClasses);
+            modeCameraBtn.setAttribute('aria-selected', 'false');
+        }
+    }
+
+    modeCameraBtn.addEventListener('click', () => switchScanMode('camera'));
+    modeImageBtn.addEventListener('click', () => switchScanMode('image'));
 
     const dropZone = document.getElementById('drop-zone');
     const btnUpload = document.getElementById('btn-upload');
