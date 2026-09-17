@@ -1,247 +1,197 @@
-# PHASE 6 — Image QR Scanning Improvement
+# ACTIVE DEVELOPMENT PHASE
+
+ACTIVE_PHASE: 8
+
+PHASE_NAME: Reusable QR Module / SDK
 
 ## PURPOSE
 
-Improve the existing QR Scanner by adding a second scanning method:
+Extract the QR generator and scanner capabilities into reusable JavaScript modules that can be imported by other applications.
 
-**Scan QR code from an uploaded image.**
+This is a modularization improvement to the existing codebase.
 
-This is an incremental improvement to the existing application.
-
-The agent must build this feature on top of the current codebase and preserve all existing functionality.
-
----
+The existing application must continue working.
 
 ## AUTHORIZED_SCOPE
 
-### Image Upload
+* reusable QR generator module
+* reusable camera scanner module
+* reusable image scanner module
+* QR utility functions required by the public API
+* ES module distribution
+* optional browser bundle
+* example consumer application
+* API documentation
+* migration of the main application to the reusable module
+* tests and bug fixes required for modularization
 
-Add an image-based QR scanning option to the existing Scan interface.
+## REQUIRED PUBLIC CAPABILITIES
 
-Support:
+The resulting module must allow another application to:
 
-* selecting an image from the device;
-* PNG images;
-* JPEG/JPG images;
-* WebP images where supported;
-* QR code screenshots;
-* downloaded QR images;
-* photographs containing QR codes;
-* locally generated QR images;
-* drag-and-drop image input where practical.
+### Generate
 
-### Local QR Decoding
+```js
+import { generateQR } from "./qr-kit.js";
 
-The selected image must be processed entirely in the browser.
-
-Flow:
-
-```text
-User selects image
-       ↓
-Image loaded locally
-       ↓
-QR detector / decoder
-       ↓
-Decoded payload
-       ↓
-Existing result UI
+const result = await generateQR("Hello World");
 ```
 
-No image or decoded data may leave the browser.
+### Scan Image
 
-### Scanner Integration
+```js
+import { scanQRFromImage } from "./qr-kit.js";
 
-Integrate image scanning into the **existing Scan experience**.
-
-Do not create a separate application or unrelated page.
-
-The Scan UI should provide both:
-
-```text
-Camera
-Image
+const result = await scanQRFromImage(file);
 ```
 
-These are two input methods for the same QR scanning functionality.
+### Camera
 
-### Result Handling
+Provide a reusable camera scanner API such as:
 
-Use the existing scanner result display whenever possible.
-
-After successful image scanning:
-
-* display the decoded payload;
-* allow existing Copy functionality to work;
-* allow existing Clear functionality to work;
-* preserve the same safe text handling already used by the application.
-
-### Error Handling
-
-Provide clear errors for:
-
-```text
-Invalid image
-Unsupported image
-No QR code detected
-Image could not be processed
+```js
+import { QRScanner } from "./qr-kit.js";
 ```
 
-Do not crash the application.
+The exact API may differ if a simpler design is preferable.
 
-### Privacy
+## UI INDEPENDENCE
 
-Image processing must remain local.
+The reusable module must not depend on:
 
-Do not introduce:
+* index.html
+* app.js
+* Tailwind CSS
+* application-specific DOM IDs
+* application-specific CSS
+* application-specific layout
 
-* image uploads;
-* cloud OCR;
-* remote QR APIs;
-* external image-processing services;
-* analytics;
-* telemetry.
+The consuming application must control its own UI.
 
----
+## DATA INDEPENDENCE
 
-## IMPROVEMENT PRINCIPLE
+The module returns data/results.
 
-This phase is an enhancement to the existing application.
+It must not decide how the consuming application displays the result.
 
-The agent must:
+The consumer may display results in:
 
-* reuse the current scanner architecture;
-* reuse existing UI components/patterns where practical;
-* reuse existing QR decoding infrastructure where possible;
-* avoid duplicating scanner logic;
-* avoid unnecessary dependencies;
-* avoid rewriting working functionality.
+* text
+* modal
+* form
+* notification
+* React state
+* Vue state
+* custom UI
+* another application-specific component
 
-Do not rebuild the application from scratch.
+## OFFLINE REQUIREMENT
 
----
+The module must work locally without runtime network dependencies.
 
-## IMPLEMENTATION PRINCIPLE
+Do not add CDN dependencies.
 
-Prefer the simplest local implementation that fits the existing architecture.
+Do not send QR data or images to external services.
 
-Do not introduce a framework.
+## PRESERVATION
 
-Do not redesign the entire scanner.
+Do not break:
 
-Do not refactor unrelated code.
+* QR generation
+* camera scanning
+* image scanning
+* large payload support
+* Unicode support
+* existing UI
+* offline operation
 
-Only modify existing architecture where required to cleanly integrate image scanning.
+Refactor only where needed to create the reusable module.
 
----
+## REQUIRED TEST
 
-## TESTING
+A separate example application must successfully:
 
-Test at minimum:
+1. import the QR module;
+2. generate a QR;
+3. display it;
+4. scan an image;
+5. start the camera scanner;
+6. receive decoded results.
 
-### Existing functionality
-
-Verify that camera scanning still works exactly as before.
-
-### Image scanning
-
-Test:
-
-* small QR image;
-* large QR image;
-* screenshot of QR;
-* downloaded QR;
-* photographed QR;
-* Unicode payload;
-* multiline payload;
-* JSON payload;
-* URL payload;
-* 100+ byte payload;
-* 200+ byte payload.
-
-### Round trip
-
-Test:
-
-```text
-Generate QR
-    ↓
-Download PNG
-    ↓
-Upload PNG
-    ↓
-Decode
-    ↓
-Original payload
-```
-
-The decoded result must exactly match the original input.
-
-### Failure cases
-
-Test:
-
-```text
-random image
-empty image
-unsupported file
-image without QR
-blurred QR
-```
-
-The application must show a useful error instead of failing silently.
-
----
-
-## DONE_WHEN
-
-Phase 6 is complete when:
-
-* the existing camera scanner still works;
-* users can upload an image containing a QR code;
-* QR codes are decoded entirely locally;
-* decoded data appears in the existing result interface;
-* Copy and Clear continue working;
-* 100+ byte payloads work;
-* 200+ byte payloads work;
-* invalid images are handled gracefully;
-* images are never uploaded;
-* no unrelated functionality is broken;
-* no unnecessary dependencies are introduced;
-* the application remains lightweight;
-* the application remains static-hosting compatible;
-* the application remains offline-capable.
-
----
+The original application must also use the same reusable QR implementation.
 
 ## DO_NOT_IMPLEMENT
 
-* general OCR;
-* barcode support;
-* video/image AI recognition;
-* cloud processing;
-* backend services;
-* scan history;
-* accounts;
-* synchronization;
-* encryption;
-* new application architecture;
-* unrelated UI redesign;
-* unrelated refactoring;
-* future features not explicitly authorized.
+* framework-specific packages
+* React-specific code
+* Vue-specific code
+* cloud APIs
+* remote QR processing
+* unrelated refactoring
+* unrelated UI redesign
+* future-phase functionality
 
----
+## DONE_WHEN
+
+All Phase 8 requirements in `PHASES.md` are satisfied.
+
+An unrelated web application can import the QR module and use generation/scanning without importing the original application's UI.
+
+The original application continues to work.
 
 ## PHASE_TRANSITION
 
-The agent MUST NOT modify `ACTIVE_PHASE.md`.
+The agent MUST NOT modify this file.
 
-The agent MUST NOT advance to another phase.
+The agent MUST NOT advance the phase.
 
-Only the human user may authorize another phase.
+Only the human user may change ACTIVE_PHASE.
 
-When all DONE_WHEN requirements are satisfied:
+When complete:
 
 STOP.
 
 Wait for human authorization.
+
+## REQUIRED_FINAL_REPORT
+
+PHASE:
+STATUS:
+
+IMPLEMENTED:
+
+* ...
+
+TESTED:
+
+* ...
+
+FILES CHANGED:
+
+* ...
+
+PUBLIC API:
+
+* ...
+
+EXAMPLE INTEGRATION:
+
+* ...
+
+DEFERRED:
+
+* ...
+
+BLOCKED:
+
+* ...
+
+SCOPE AUDIT:
+
+* Reusable module created.
+* Main application uses reusable module.
+* No future-phase functionality implemented.
+* ACTIVE_PHASE was not modified.
+
+NEXT AUTHORIZED PHASE:
+NONE — waiting for human authorization
