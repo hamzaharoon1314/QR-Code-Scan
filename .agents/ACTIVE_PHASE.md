@@ -1,290 +1,247 @@
-# ACTIVE DEVELOPMENT PHASE
+# PHASE 6 — Image QR Scanning Improvement
 
-ACTIVE_PHASE: 3
+## PURPOSE
 
-PHASE_NAME: QR Scanner — Camera and Image
+Improve the existing QR Scanner by adding a second scanning method:
+
+**Scan QR code from an uploaded image.**
+
+This is an incremental improvement to the existing application.
+
+The agent must build this feature on top of the current codebase and preserve all existing functionality.
+
+---
 
 ## AUTHORIZED_SCOPE
 
-### Camera Scanner
+### Image Upload
 
-* camera permission handling
-* camera preview
-* QR detection
-* QR decoding
-* scanner start/stop
-* camera switching when practical
-* copy decoded result
-* clear decoded result
-* duplicate detection prevention
-* scanner-specific error handling
+Add an image-based QR scanning option to the existing Scan interface.
 
-### Image Scanner
+Support:
 
-Add a second way to scan a QR code:
-
-* upload an image containing a QR code;
-* decode the QR code entirely locally;
-* display the decoded result;
-* allow the user to select an image from the device;
-* support common image formats such as PNG, JPEG, and WebP where supported by the browser;
-* allow drag-and-drop when practical;
-* provide a clear error when no QR code can be detected;
-* do not upload the image anywhere.
-
-## SCANNER UI
-
-The Scan view should provide two clearly understandable options:
-
-```text
-Scan with Camera
-
-        OR
-
-Scan from Image
-[ Upload Image ]
-```
-
-On desktop, drag-and-drop may also be provided:
-
-```text
-┌───────────────────────────────┐
-│                               │
-│      Drop QR image here       │
-│                               │
-│       or                     │
-│                               │
-│     [ Choose Image ]          │
-│                               │
-└───────────────────────────────┘
-```
-
-Keep the UI simple.
-
-Do not create a separate page for image scanning.
-
-## IMAGE PROCESSING
-
-Image QR decoding must happen entirely inside the browser.
-
-The application must:
-
-1. receive the selected local image;
-2. load it locally;
-3. process it locally;
-4. detect the QR code locally;
-5. decode the QR payload;
-6. display the result.
-
-The original image must never be sent to a server.
-
-Do not use:
-
-* cloud OCR;
-* remote image recognition;
-* external QR scanning APIs;
-* remote uploads.
-
-## DETECTION STRATEGY
-
-Prefer a local browser-native QR detection capability when practical.
-
-Provide a bundled local fallback decoder when required.
-
-The implementation should work with:
-
-* QR screenshots;
-* photographs of QR codes;
+* selecting an image from the device;
+* PNG images;
+* JPEG/JPG images;
+* WebP images where supported;
+* QR code screenshots;
 * downloaded QR images;
-* generated QR images;
-* QR codes embedded inside normal images.
+* photographs containing QR codes;
+* locally generated QR images;
+* drag-and-drop image input where practical.
 
-Do not implement general OCR.
+### Local QR Decoding
 
-Only QR-code detection is required.
+The selected image must be processed entirely in the browser.
 
-## IMAGE ERROR HANDLING
-
-Handle at least these cases:
-
-### Invalid file
-
-Show:
+Flow:
 
 ```text
-Please select a valid image.
+User selects image
+       ↓
+Image loaded locally
+       ↓
+QR detector / decoder
+       ↓
+Decoded payload
+       ↓
+Existing result UI
 ```
 
-### No QR detected
+No image or decoded data may leave the browser.
 
-Show:
+### Scanner Integration
+
+Integrate image scanning into the **existing Scan experience**.
+
+Do not create a separate application or unrelated page.
+
+The Scan UI should provide both:
 
 ```text
-No QR code was detected in this image.
+Camera
+Image
 ```
 
-### Unsupported image
+These are two input methods for the same QR scanning functionality.
 
-Show:
+### Result Handling
+
+Use the existing scanner result display whenever possible.
+
+After successful image scanning:
+
+* display the decoded payload;
+* allow existing Copy functionality to work;
+* allow existing Clear functionality to work;
+* preserve the same safe text handling already used by the application.
+
+### Error Handling
+
+Provide clear errors for:
 
 ```text
-This image format could not be processed.
+Invalid image
+Unsupported image
+No QR code detected
+Image could not be processed
 ```
 
-### Successful scan
+Do not crash the application.
 
-Show:
+### Privacy
 
-```text
-QR detected
-```
+Image processing must remain local.
 
-followed by the complete decoded payload.
+Do not introduce:
 
-## CAMERA REQUIREMENTS
+* image uploads;
+* cloud OCR;
+* remote QR APIs;
+* external image-processing services;
+* analytics;
+* telemetry.
 
-The camera scanner must:
+---
 
-* request permission appropriately;
-* display the camera preview;
-* prefer the rear/environment camera on supported mobile devices;
-* detect QR codes;
-* decode QR payloads locally;
-* display the complete decoded result;
-* handle Unicode correctly;
-* handle multiline text;
-* handle JSON;
-* handle URLs;
-* handle large payloads supported by the QR implementation;
-* avoid repeatedly processing the same QR every frame;
-* allow scanning to be stopped;
-* provide useful errors when camera access is unavailable.
+## IMPROVEMENT PRINCIPLE
 
-## LARGE PAYLOAD REQUIREMENT
+This phase is an enhancement to the existing application.
 
-The scanner must be tested with QR codes containing at least:
+The agent must:
 
-* 100+ bytes
-* 200+ bytes
+* reuse the current scanner architecture;
+* reuse existing UI components/patterns where practical;
+* reuse existing QR decoding infrastructure where possible;
+* avoid duplicating scanner logic;
+* avoid unnecessary dependencies;
+* avoid rewriting working functionality.
 
-Also test larger payloads supported by the QR implementation.
+Do not rebuild the application from scratch.
 
-The decoded output must exactly match the original payload.
+---
 
-## ROUND-TRIP TEST
+## IMPLEMENTATION PRINCIPLE
 
-The Phase 2 generator must be tested with the Phase 3 scanner.
+Prefer the simplest local implementation that fits the existing architecture.
+
+Do not introduce a framework.
+
+Do not redesign the entire scanner.
+
+Do not refactor unrelated code.
+
+Only modify existing architecture where required to cleanly integrate image scanning.
+
+---
+
+## TESTING
+
+Test at minimum:
+
+### Existing functionality
+
+Verify that camera scanning still works exactly as before.
+
+### Image scanning
+
+Test:
+
+* small QR image;
+* large QR image;
+* screenshot of QR;
+* downloaded QR;
+* photographed QR;
+* Unicode payload;
+* multiline payload;
+* JSON payload;
+* URL payload;
+* 100+ byte payload;
+* 200+ byte payload.
+
+### Round trip
 
 Test:
 
 ```text
-Input
-  ↓
 Generate QR
-  ↓
-Download QR as image
-  ↓
-Upload QR image
-  ↓
+    ↓
+Download PNG
+    ↓
+Upload PNG
+    ↓
 Decode
-  ↓
-Output
+    ↓
+Original payload
 ```
 
-The final output must equal the original input.
+The decoded result must exactly match the original input.
 
-Also test:
+### Failure cases
+
+Test:
 
 ```text
-Input
-  ↓
-Generate QR
-  ↓
-Display QR
-  ↓
-Camera scan
-  ↓
-Output
+random image
+empty image
+unsupported file
+image without QR
+blurred QR
 ```
 
-## SECURITY REQUIREMENTS
+The application must show a useful error instead of failing silently.
 
-Decoded QR data is untrusted input.
+---
 
-Never:
+## DONE_WHEN
 
-* execute decoded content;
-* inject decoded content as HTML;
-* automatically navigate to decoded URLs;
-* interpret decoded content as executable code.
+Phase 6 is complete when:
 
-Prefer safe text rendering.
+* the existing camera scanner still works;
+* users can upload an image containing a QR code;
+* QR codes are decoded entirely locally;
+* decoded data appears in the existing result interface;
+* Copy and Clear continue working;
+* 100+ byte payloads work;
+* 200+ byte payloads work;
+* invalid images are handled gracefully;
+* images are never uploaded;
+* no unrelated functionality is broken;
+* no unnecessary dependencies are introduced;
+* the application remains lightweight;
+* the application remains static-hosting compatible;
+* the application remains offline-capable.
+
+---
 
 ## DO_NOT_IMPLEMENT
 
-* general OCR
-* barcode scanning other than QR
-* cloud recognition
-* remote OCR
-* backend processing
-* image uploads to servers
-* scan history
-* persistent scan storage
-* accounts
-* authentication
-* encryption
-* synchronization
-* P2P communication
-* analytics
-* telemetry
-* unrelated UI redesign
-* speculative future functionality
+* general OCR;
+* barcode support;
+* video/image AI recognition;
+* cloud processing;
+* backend services;
+* scan history;
+* accounts;
+* synchronization;
+* encryption;
+* new application architecture;
+* unrelated UI redesign;
+* unrelated refactoring;
+* future features not explicitly authorized.
+
+---
 
 ## PHASE_TRANSITION
 
-The agent MUST NOT modify this file.
+The agent MUST NOT modify `ACTIVE_PHASE.md`.
 
-The agent MUST NOT advance the phase.
+The agent MUST NOT advance to another phase.
 
-Only the human user may change ACTIVE_PHASE.
+Only the human user may authorize another phase.
 
 When all DONE_WHEN requirements are satisfied:
 
 STOP.
 
-Wait for explicit human authorization before Phase 4.
-
-## REQUIRED_FINAL_REPORT
-
-PHASE:
-STATUS:
-
-IMPLEMENTED:
-
-* ...
-
-TESTED:
-
-* ...
-
-FILES CHANGED:
-
-* ...
-
-DEFERRED:
-
-* ...
-
-BLOCKED:
-
-* ...
-
-SCOPE AUDIT:
-
-* Camera scanning implemented only if authorized above.
-* Image scanning implemented only if authorized above.
-* No future-phase functionality implemented.
-* ACTIVE_PHASE was not modified.
-
-NEXT AUTHORIZED PHASE:
-NONE — waiting for human authorization
+Wait for human authorization.

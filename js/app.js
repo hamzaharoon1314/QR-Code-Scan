@@ -303,4 +303,140 @@ document.addEventListener('DOMContentLoaded', () => {
         lastDecodedText = null;
     });
 
+    // --- Image Scanner Logic ---
+    const modeCameraBtn = document.getElementById('mode-camera');
+    const modeImageBtn = document.getElementById('mode-image');
+    const uiCamera = document.getElementById('ui-camera');
+    const uiImage = document.getElementById('ui-image');
+    const imageError = document.getElementById('image-error');
+
+    function switchScanMode(mode) {
+        if (mode === 'camera') {
+            uiCamera.classList.remove('hidden');
+            uiCamera.classList.add('flex');
+            uiImage.classList.add('hidden');
+            uiImage.classList.remove('flex');
+            
+            modeCameraBtn.classList.add(...activeClasses);
+            modeCameraBtn.classList.remove(...inactiveClasses);
+            modeCameraBtn.setAttribute('aria-selected', 'true');
+            
+            modeImageBtn.classList.remove(...activeClasses);
+            modeImageBtn.classList.add(...inactiveClasses);
+            modeImageBtn.setAttribute('aria-selected', 'false');
+        } else {
+            stopScanner();
+            uiImage.classList.remove('hidden');
+            uiImage.classList.add('flex');
+            uiCamera.classList.add('hidden');
+            uiCamera.classList.remove('flex');
+            
+            modeImageBtn.classList.add(...activeClasses);
+            modeImageBtn.classList.remove(...inactiveClasses);
+            modeImageBtn.setAttribute('aria-selected', 'true');
+            
+            modeCameraBtn.classList.remove(...activeClasses);
+            modeCameraBtn.classList.add(...inactiveClasses);
+            modeCameraBtn.setAttribute('aria-selected', 'false');
+        }
+    }
+
+    modeCameraBtn.addEventListener('click', () => switchScanMode('camera'));
+    modeImageBtn.addEventListener('click', () => switchScanMode('image'));
+
+    const dropZone = document.getElementById('drop-zone');
+    const btnUpload = document.getElementById('btn-upload');
+    const fileUpload = document.getElementById('file-upload');
+
+    function processImageFile(file) {
+        scanError.classList.add('hidden');
+        imageError.classList.add('hidden');
+
+        if (!file || !file.type.startsWith('image/')) {
+            imageError.textContent = 'Please select a valid image.';
+            imageError.classList.remove('hidden');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = async () => {
+                const maxDimension = 1200;
+                let width = img.width;
+                let height = img.height;
+                if (width > maxDimension || height > maxDimension) {
+                    const ratio = Math.min(maxDimension / width, maxDimension / height);
+                    width *= ratio;
+                    height *= ratio;
+                }
+                scanCanvas.width = width;
+                scanCanvas.height = height;
+                scanCtx.drawImage(img, 0, 0, width, height);
+
+                let found = false;
+                if (barcodeDetector) {
+                    try {
+                        const barcodes = await barcodeDetector.detect(scanCanvas);
+                        if (barcodes.length > 0) {
+                            displayResult(barcodes[0].rawValue);
+                            found = true;
+                        }
+                    } catch (err) {}
+                }
+                
+                if (!found && typeof jsQR !== 'undefined') {
+                    const imageData = scanCtx.getImageData(0, 0, width, height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                        inversionAttempts: 'attemptBoth',
+                    });
+                    if (code && code.data) {
+                        displayResult(code.data);
+                        found = true;
+                    }
+                }
+
+                if (!found) {
+                    imageError.textContent = 'No QR code was detected in this image.';
+                    imageError.classList.remove('hidden');
+                }
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    btnUpload.addEventListener('click', () => {
+        fileUpload.click();
+    });
+    
+    // Allow clicking the drop zone itself to open file dialog
+    dropZone.addEventListener('click', (e) => {
+        if (e.target !== btnUpload) fileUpload.click();
+    });
+
+    fileUpload.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+            processImageFile(e.target.files[0]);
+        }
+        // Reset so same file can be selected again
+        e.target.value = '';
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('bg-indigo-50', 'border-indigo-300');
+    });
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('bg-indigo-50', 'border-indigo-300');
+    });
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('bg-indigo-50', 'border-indigo-300');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            processImageFile(e.dataTransfer.files[0]);
+        }
+    });
+
 });
